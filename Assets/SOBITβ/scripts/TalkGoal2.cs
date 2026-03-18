@@ -4,8 +4,10 @@ public class TalkGoal2 : TalkGoal
 {
     public RandomPersonAndFood randomManager;
     public GameObject target; 
-    public SpeechBubble wbubble;
-    public SpeechBubble cbubble;
+    public GameObject target2; 
+    public GameObject target3; 
+    public GameObject target4; 
+
 
     //public int taskIndex;  // このOrderManagerに紐づくタスク番号
     private string reply;  // 最後に出した注文
@@ -19,6 +21,46 @@ public class TalkGoal2 : TalkGoal
     // ユーザーからのテキストを処理
     public override string HandleUserText(string userText)
     {
+        if (userText == "オレオ")
+        {
+
+            FreeTaskManager.Instance.CompleteTask("オレオ");
+
+
+            reply = "none"; // タスク完了したら注文をリセット
+        }
+
+        if (userText == "オレオを置いてください")
+        {
+
+            FreeTaskManager.Instance.CompleteTask("商品を置く");
+            target3.SetActive(true);
+
+            reply = "none"; // タスク完了したら注文をリセット
+        }
+
+        if (userText == "置きましたか")
+        {
+            target.SetActive(false);
+            target2.SetActive(true);
+
+            FreeTaskManager.Instance.CompleteTask("確認");
+
+
+            reply = "none"; // タスク完了したら注文をリセット
+        }
+
+        if (userText == "商品をとってください")
+        {
+            target3.SetActive(false);
+
+            FreeTaskManager.Instance.CompleteTask("届ける");
+
+
+            reply = "none"; // タスク完了したら注文をリセット
+        }
+
+
         if (randomManager == null)
         {
             Debug.LogError("❌ randomManager が null");
@@ -39,41 +81,26 @@ public class TalkGoal2 : TalkGoal
         }
         else if (TaskManager.Instance.CurrentIndex == 1)
         {
-            if (randomManager.idx == 0)
-            {
+
                 if (userText == "キッチンは左です")
                 {
                     TaskManager.Instance.CompleteCurrentTask();
 
-                    isPlaying = true;
-
                     reply = "none"; // タスク完了したら注文をリセット
                 }
-            }
-            else
-            {
-                if (userText == "キッチンは右です")
-                {
-                    TaskManager.Instance.CompleteCurrentTask();
 
-                    isPlaying = true;
 
-                    reply = "none"; // タスク完了したら注文をリセット
-                }
-            }
         }
         else if (TaskManager.Instance.CurrentIndex == 2)
         {
             // 注文リクエスト
             if (userText == "売り切れ商品は何ですか")
             {
-                reply = randomManager.soldOutItem;
-                wbubble.Say(reply);
-                Debug.Log($"店員: {reply}");
-                return reply; // ここを返す
+                target2.SetActive(false);
+                target3.SetActive(true);
             }
             // 注文の復唱確認
-            else if (userText == $"売り切れ商品は{reply}")
+            else if (userText == $"売り切れ商品はコーヒー")
             {
                 TaskManager.Instance.CompleteCurrentTask();
                 reply = "none";
@@ -84,13 +111,12 @@ public class TalkGoal2 : TalkGoal
             // 注文リクエスト
             if (userText == "テーブルは何番ですか")
             {
-                reply = (randomManager.cusidx + 1).ToString();
-                wbubble.Say(reply);
-                Debug.Log($"店員: {reply}");
-                return reply;
+                target3.SetActive(false);
+                target4.SetActive(true); 
+
             }
             // 注文の復唱確認
-            else if (userText == $"テーブル{reply}に向かいます")
+            else if (userText == $"テーブル3に向かいます")
             {
                 TaskManager.Instance.CompleteCurrentTask();
                 reply = "none";
@@ -105,14 +131,14 @@ public class TalkGoal2 : TalkGoal
                 if (rand == 0)
                 {
                     reply = randomManager.soldOutItem;
-                    cbubble.Say(reply);
+                    
                     Debug.Log($"客: {reply}");
                     return reply;
                 }
                 else
                 {
                     reply = randomManager.wantItem;
-                    cbubble.Say(reply);
+                    
                     Debug.Log($"客: {reply}");
                     return reply;                    
                 }
@@ -120,7 +146,7 @@ public class TalkGoal2 : TalkGoal
             else if (userText =="別の商品を注文してください")
             {
                 reply = randomManager.wantItem;
-                cbubble.Say(reply);
+                
                 Debug.Log($"客: {reply}");
                 return reply;
             }

@@ -27,12 +27,11 @@ public class TalkGoal1 : TalkGoal
 
         if (TaskManager.Instance.CurrentIndex == 0)
         {
-            if (userText == "ドアを開けてください")
+            if (userText == "Hello!")
             {
+                wbubble.Say("Hello!");
 
                 TaskManager.Instance.CompleteCurrentTask();
-
-                isPlaying = true;
 
                 reply = "none"; // タスク完了したら注文をリセット
             }

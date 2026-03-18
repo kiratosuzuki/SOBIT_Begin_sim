@@ -43,6 +43,23 @@ public class TaskManager : MonoBehaviour
 
         currentIndex = index;
     }
+    
+    public void CompleteTask(GameObject goalObject)
+    {
+        for (int i = 0; i < tasks.Count; i++)
+        {
+            if (tasks[i].goal == goalObject)
+            {
+                // ⭐ そのタスク固有のスコアを加算
+                ScoreManager.Instance.AddScore(tasks[i].score);
+
+                tasks[i].goal.SetActive(false);
+
+                Debug.Log("Clear : " + tasks[i].goal.name);
+                return;
+            }
+        }
+    }
 
     public void CompleteCurrentTask()
     {

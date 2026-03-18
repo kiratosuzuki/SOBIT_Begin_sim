@@ -109,6 +109,11 @@ public class OriginUnity : WebSocketBehavior
 
     public HsrSmoothGripper gripper;
 
+    //★特別枠
+    bool continuousScan = true;
+    float scanInterval = 0.5f;
+    float scanTimer = 0f;
+
 
     // -------- setter --------
     public void SetBaseFootprint(Transform t) => baseFootprint = t;
@@ -168,6 +173,18 @@ public class OriginUnity : WebSocketBehavior
     // ======================================================
     public void UpdateMovement()
     {
+        // ★ 常時スキャン
+        if (continuousScan)
+        {
+            scanTimer += Time.deltaTime;
+
+            if (scanTimer >= scanInterval)
+            {
+                DoScan();
+                scanTimer = 0f;
+            }
+        }
+
         if (baseFootprint == null) return;
 
         // ---------- ★ 遅延中なら待つ ----------

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class GoalPoint : MonoBehaviour
+public class FreeGoalPoint : MonoBehaviour
 {
     public string taskName;   // Inspectorで設定するタスク名
 

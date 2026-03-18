@@ -86,9 +86,9 @@ namespace SIGVerse.Common
 		private const int    DefaultRosbridgePort       = 9090;
 		private const int    DefaultSigverseBridgePort  = 50001;
 		private const string DefaultLogFileName         = "SIGVerse.log";
-		private const bool   DefaultUseSigverseMenu     = true;
-		private const bool   DefaultIsAutoStartWithMenu = true;
-		private const bool   DefaultSetUpRosTimestamp   = true;
+		private const bool   DefaultUseSigverseMenu     = false;
+		private const bool   DefaultIsAutoStartWithMenu = false;
+		private const bool   DefaultSetUpRosTimestamp   = false;
 
 
 		public string rosbridgeIP;

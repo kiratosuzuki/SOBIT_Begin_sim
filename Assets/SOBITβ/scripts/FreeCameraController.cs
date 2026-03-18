@@ -14,7 +14,7 @@ public class FreeCameraController : MonoBehaviour
     void Update()
     {
         // クリック開始を検出
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(1))
         {
             // 今のカメラ角度を yaw/pitch に反映する
             Vector3 angles = transform.eulerAngles;
@@ -28,7 +28,7 @@ public class FreeCameraController : MonoBehaviour
         }
 
         // クリック中なら視点回転
-        if (Input.GetMouseButton(0))
+        if (Input.GetMouseButton(1))
         {
             yaw += lookSpeed * Input.GetAxis("Mouse X");
             pitch -= lookSpeed * Input.GetAxis("Mouse Y");
@@ -37,7 +37,7 @@ public class FreeCameraController : MonoBehaviour
             transform.eulerAngles = new Vector3(pitch, yaw, 0f);
         }
 
-        if (Input.GetMouseButtonUp(0))
+        if (Input.GetMouseButtonUp(1))
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
