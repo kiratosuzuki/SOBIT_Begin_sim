@@ -173,7 +173,7 @@ public class OriginUnity : WebSocketBehavior
     // ======================================================
     public void UpdateMovement()
     {
-        // ★ 常時スキャン
+        //★ 常時スキャン
         if (continuousScan)
         {
             scanTimer += Time.deltaTime;

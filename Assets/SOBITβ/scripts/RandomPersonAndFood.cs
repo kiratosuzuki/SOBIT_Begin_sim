@@ -98,6 +98,10 @@ public class RandomPersonAndFood : MonoBehaviour
             Debug.Log($"SoldOut: {soldOutItem}");
             Debug.Log($"Dummy: {dummyItem}");
         }
+
+        //★特別枠
+        customer = foodsParent.GetChild(want).gameObject;
+        foodsParent.GetChild(want).gameObject.SetActive(true);
     }
 
     //=====================================================
@@ -174,7 +178,8 @@ public class RandomPersonAndFood : MonoBehaviour
             customer.transform.position = target.position;
 
         customer.transform.rotation =
-            (idx == 2) ? Quaternion.Euler(0f, 0f, 0f)
-                       : Quaternion.Euler(0f, 270f, 0f);
+            (idx == 2) ? Quaternion.Euler(270f, 0f, 180f)   //0,0,0
+                       : Quaternion.Euler(270f, 90f, 0f);   //0,270,0
+
     }
 }
