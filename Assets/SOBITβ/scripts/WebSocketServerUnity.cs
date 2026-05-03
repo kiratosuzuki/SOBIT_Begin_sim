@@ -2,104 +2,51 @@ using UnityEngine;
 using WebSocketSharp.Server;
 using WebSocketSharp;
 using System.Collections.Generic;
+using System;
 
 public class WebSocketServerUnity : MonoBehaviour
 {
     private WebSocketServer wssv;
-    private OriginUnity originUnity;
 
+    [Header("Robot")]
     public Transform baseFootprint;
-    public Camera camera;
+    public Camera robotCamera;
     public float maxDistance = 50f;
     public LayerMask detectLayer = ~0;
 
+    [Header("Components")]
     public TalkGoal talkGoal;
     public HsrSmoothGripper gripper;
     public SpeechBubble bubble;
 
-    void Start()
-    {
-        wssv = new WebSocketServer(8080);
+    [Header("Camera Topic")]
+    public float cameraScanInterval = 0.5f;
 
-        wssv.AddWebSocketService<OriginUnity>("/unity", () =>
-        {
-            var service = new OriginUnity();
-
-            service.SetBaseFootprint(baseFootprint);
-            service.SetCamera(camera, maxDistance, detectLayer);
-            service.talkGoal = talkGoal;
-            service.bubble = bubble;
-            service.gripper = gripper;
-
-            originUnity = service;
-            return service;
-        });
-
-        wssv.Start();
-        Debug.Log("🌐 WebSocket Server started: ws://localhost:8080/unity");
-    }
-
-    void OnDestroy()
-    {
-        // Unity の Play/Stop の「Stop」時に必ず呼ばれる
-        wssv?.Stop();
-        Debug.Log("🛑 WebSocket server stopped (OnDestroy)");
-    }
-
-    void Update()
-    {
-        originUnity?.UpdateMovement();
-    }
-
-    void OnApplicationQuit()
-    {
-        wssv?.Stop();
-        Debug.Log("🛑 WebSocket server stopped");
-    }
-
-    private void OnDrawGizmos()
-    {
-        if (camera == null) return;
-
-        Gizmos.color = new Color(0f, 1f, 1f, 0.25f);
-        Gizmos.DrawWireSphere(camera.transform.position, maxDistance);
-    }
-}
-
-
-
-// ======================================================
-// OriginUnity
-// ======================================================
-public class OriginUnity : WebSocketBehavior
-{
-    public TalkGoal talkGoal;
-    public SpeechBubble bubble;
-
-    private Transform baseFootprint;
-    private Camera camera;
-    private float maxDistance;
-    private LayerMask detectLayer;
-
-    private Queue<Command> commandQueue = new Queue<Command>();
-
+    // Movement parameters
     private float linearSpeed = 0.5f;
     private float angularSpeed = 60f;
     private float targetDistance = 1.0f;
     private float targetAngle = 90f;
 
+    // Movement state
     private bool isExecuting = false;
     private string currentCommand = "";
     private float movedDistance = 0f;
     private float turnedAngle = 0f;
     private float turnDirection = 1f;
-
     private string talkText = "";
 
-    // ★ 遅延処理用
+    // Delay state
     private bool delayMode = false;
     private float delayTimer = 0f;
-    private float delayDuration = 5f;   // ← 1秒待ち
+    private float delayDuration = 0f;
+    private string pendingResponse = "";
+
+    // Camera publish
+    private float cameraScanTimer = 0f;
+
+    // Command queue (written from WS thread, read from main thread)
+    private readonly Queue<Command> commandQueue = new Queue<Command>();
 
     private struct Command
     {
@@ -107,46 +54,62 @@ public class OriginUnity : WebSocketBehavior
         public float value;
     }
 
-    public HsrSmoothGripper gripper;
-
-    //★特別枠
-    bool continuousScan = true;
-    float scanInterval = 0.5f;
-    float scanTimer = 0f;
-
-
-    // -------- setter --------
-    public void SetBaseFootprint(Transform t) => baseFootprint = t;
-    public void SetCamera(Camera cam, float distance, LayerMask layer)
-    {
-        camera = cam;
-        maxDistance = distance;
-        detectLayer = layer;
-    }
-
 
     // ======================================================
-    // WebSocket 受信
+    // Lifecycle
     // ======================================================
-    protected override void OnMessage(MessageEventArgs e)
+    void Start()
     {
-        //Debug.Log($"📩 受信: {e.Data}");
+        wssv = new WebSocketServer(8080);
 
-        Command cmd = ParseCommand(e.Data);
-
-        lock (commandQueue)
+        // /unity/order  — Scratch → Unity (コマンド受信)
+        wssv.AddWebSocketService<OrderService>("/unity/order", () =>
         {
-            commandQueue.Enqueue(cmd);
-        }
+            var s = new OrderService();
+            s.OnCommand = EnqueueRaw;
+            return s;
+        });
+
+        // /unity/camera   — Unity → Scratch (常時スキャン配信)
+        wssv.AddWebSocketService<PassiveService>("/unity/camera");
+
+        // /unity/response — Unity → Scratch (行動完了通知)
+        wssv.AddWebSocketService<PassiveService>("/unity/response");
+
+        // /unity/reply    — Unity → Scratch (talk応答テキスト)
+        wssv.AddWebSocketService<PassiveService>("/unity/reply");
+
+        wssv.Start();
+        Debug.Log("🌐 WebSocket Server started: ws://localhost:8080");
+        Debug.Log("  order    → ws://localhost:8080/unity/order");
+        Debug.Log("  camera   → ws://localhost:8080/unity/camera");
+        Debug.Log("  response → ws://localhost:8080/unity/response");
+        Debug.Log("  reply    → ws://localhost:8080/unity/reply");
+    }
+
+    void OnDestroy() => wssv?.Stop();
+    void OnApplicationQuit() => wssv?.Stop();
+
+    void Update()
+    {
+        ProcessMovement();
+        PublishCamera();
     }
 
 
     // ======================================================
-    // コマンド解析
+    // コマンド受付 (WSスレッド → メインスレッド橋渡し)
     // ======================================================
-    private Command ParseCommand(string msg)
+    private void EnqueueRaw(string msg)
     {
-        Command cmd = new Command { type = msg, value = 0f };
+        Command cmd = Parse(msg);
+        lock (commandQueue)
+            commandQueue.Enqueue(cmd);
+    }
+
+    private Command Parse(string msg)
+    {
+        var cmd = new Command { type = msg, value = 0f };
 
         if (msg.StartsWith("talk:"))
         {
@@ -159,9 +122,8 @@ public class OriginUnity : WebSocketBehavior
         {
             string[] parts = msg.Split(':');
             cmd.type = parts[0];
-
-            if (parts.Length > 1 && float.TryParse(parts[1], out float val))
-                cmd.value = val;
+            if (parts.Length > 1 && float.TryParse(parts[1], out float v))
+                cmd.value = v;
         }
 
         return cmd;
@@ -169,169 +131,200 @@ public class OriginUnity : WebSocketBehavior
 
 
     // ======================================================
-    // UpdateMovement
+    // カメラトピック配信 (メインスレッド)
     // ======================================================
-    public void UpdateMovement()
+    private void PublishCamera()
     {
-        //★ 常時スキャン
-        if (continuousScan)
-        {
-            scanTimer += Time.deltaTime;
+        cameraScanTimer += Time.deltaTime;
+        if (cameraScanTimer < cameraScanInterval) return;
+        cameraScanTimer = 0f;
 
-            if (scanTimer >= scanInterval)
-            {
-                DoScan();
-                scanTimer = 0f;
-            }
-        }
+        string result = DoScan();
+        Broadcast("/unity/camera", result);
+    }
 
+
+    // ======================================================
+    // 行動処理 (メインスレッド)
+    // ======================================================
+    private void ProcessMovement()
+    {
         if (baseFootprint == null) return;
 
-        // ---------- ★ 遅延中なら待つ ----------
+        // 遅延待ち
         if (delayMode)
         {
             delayTimer += Time.deltaTime;
-            if (delayTimer >= delayDuration)
+            if (delayTimer < delayDuration) return;
+
+            delayMode = false;
+            isExecuting = false;
+            if (!string.IsNullOrEmpty(pendingResponse))
             {
-                delayMode = false;
-                isExecuting = false;
+                Broadcast("/unity/response", pendingResponse);
+                pendingResponse = "";
             }
             return;
         }
 
-
+        // 次のコマンドをデキュー
         if (!isExecuting)
         {
             lock (commandQueue)
             {
-                if (commandQueue.Count > 0)
+                if (commandQueue.Count == 0) return;
+
+                Command cmd = commandQueue.Dequeue();
+                currentCommand = cmd.type;
+
+                if (currentCommand == "move")
+                    targetDistance = cmd.value != 0f ? Mathf.Abs(cmd.value) : 1.0f;
+                else if (currentCommand == "turn")
                 {
-                    Command cmd = commandQueue.Dequeue();
-                    currentCommand = cmd.type;
-
-                    if (currentCommand == "move")
-                        targetDistance = (cmd.value != 0f) ? Mathf.Abs(cmd.value) : 1.0f;
-
-                    else if (currentCommand == "turn")
-                    {
-                        targetAngle = Mathf.Abs(cmd.value != 0f ? cmd.value : 90f);
-                        turnDirection = (cmd.value >= 0f) ? 1f : -1f;
-                    }
-
-                    isExecuting = true;
-                    movedDistance = 0f;
-                    turnedAngle = 0f;
+                    targetAngle = Mathf.Abs(cmd.value != 0f ? cmd.value : 90f);
+                    turnDirection = cmd.value >= 0f ? 1f : -1f;
                 }
+
+                isExecuting = true;
+                movedDistance = 0f;
+                turnedAngle = 0f;
             }
         }
 
         if (!isExecuting) return;
 
-
-        // ---------- move ----------
-        if (currentCommand == "move")
+        switch (currentCommand)
         {
-            float step = linearSpeed * Time.deltaTime;
-            baseFootprint.Translate(-Vector3.right * step, Space.Self);
-            movedDistance += step;
+            case "move":
+            {
+                float step = linearSpeed * Time.deltaTime;
+                baseFootprint.Translate(-Vector3.right * step, Space.Self);
+                movedDistance += step;
+                if (movedDistance >= targetDistance)
+                {
+                    isExecuting = false;
+                    Broadcast("/unity/response", "done:move");
+                }
+                break;
+            }
 
-            if (movedDistance >= targetDistance)
+            case "turn":
+            {
+                float step = angularSpeed * Time.deltaTime;
+                baseFootprint.Rotate(Vector3.forward * step * turnDirection, Space.Self);
+                turnedAngle += step;
+                if (turnedAngle >= targetAngle)
+                {
+                    isExecuting = false;
+                    Broadcast("/unity/response", "done:turn");
+                }
+                break;
+            }
+
+            case "talk":
+            {
+                bubble.Say(talkText);
+                string reply = talkGoal.HandleUserText(talkText);
+                Broadcast("/unity/reply", reply);
+                StartDelay(4f, "done:talk");
+                break;
+            }
+
+            case "open":
+                gripper?.Open();
+                StartDelay(2f, "done:open");
+                break;
+
+            case "close":
+                gripper?.Close();
+                StartDelay(2f, "done:close");
+                break;
+
+            default:
                 isExecuting = false;
+                break;
         }
+    }
 
-        // ---------- turn ----------
-        else if (currentCommand == "turn")
-        {
-            float step = angularSpeed * Time.deltaTime;
-            baseFootprint.Rotate(Vector3.forward * step * turnDirection, Space.Self);
-            turnedAngle += step;
-
-            if (turnedAngle >= targetAngle)
-                isExecuting = false;
-        }
-
-        // ---------- scan ----------
-        else if (currentCommand == "scan")
-        {
-            DoScan();
-            isExecuting = false;
-        }
-
-        // ---------- talk ----------
-        else if (currentCommand == "talk")
-        {
-            Debug.Log($"Robot: {talkText}");
-            bubble.Say(talkText);
-
-            delayDuration = 4f;
-            delayMode = true;
-            delayTimer = 0f;
-
-            string reply = talkGoal.HandleUserText(talkText);
-
-            Send(reply);
-            isExecuting = false;
-        }
-
-        // ---------- open ----------
-        else if (currentCommand == "open")
-        {
-            Debug.Log("🟦 Gripper OPEN command received");
-            gripper?.Open();
-
-            delayDuration = 2f;
-            delayMode = true;
-            delayTimer = 0f;
-        }
-
-        // ---------- close ----------
-        else if (currentCommand == "close")
-        {
-            Debug.Log("🟥 Gripper CLOSE command received");
-            gripper?.Close();
-
-            delayDuration = 2f;
-            delayMode = true;
-            delayTimer = 0f;
-        }
-
-        else
-        {
-            isExecuting = false;
-        }
+    private void StartDelay(float duration, string responseAfter)
+    {
+        delayDuration = duration;
+        delayTimer = 0f;
+        delayMode = true;
+        pendingResponse = responseAfter;
+        isExecuting = false;
     }
 
 
     // ======================================================
     // スキャン
     // ======================================================
-    private void DoScan()
+    private string DoScan()
     {
-        if (camera == null) return;
+        if (robotCamera == null) return "none";
 
-        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(camera);
-        Collider[] hits = Physics.OverlapSphere(camera.transform.position, maxDistance, detectLayer);
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(robotCamera);
+        Collider[] hits = Physics.OverlapSphere(robotCamera.transform.position, maxDistance, detectLayer);
 
-        List<string> detected = new List<string>();
-
+        var detected = new List<string>();
         foreach (var hit in hits)
         {
             if (GeometryUtility.TestPlanesAABB(planes, hit.bounds) && hit.CompareTag("scan"))
-            {
                 detected.Add(hit.gameObject.name);
-                Debug.Log($"🔍 検知: {hit.gameObject.name}");
-            }
         }
 
-        Send(detected.Count > 0 ? string.Join(",", detected) : "none");
+        return detected.Count > 0 ? string.Join(",", detected) : "none";
     }
 
 
     // ======================================================
-    // 会話
+    // ブロードキャスト
     // ======================================================
-    private void DoTalk(string userText)
+    private void Broadcast(string path, string message)
     {
-
+        try
+        {
+            wssv.WebSocketServices[path].Sessions.Broadcast(message);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"Broadcast failed [{path}]: {e.Message}");
+        }
     }
+
+
+    // ======================================================
+    // Gizmos
+    // ======================================================
+    private void OnDrawGizmos()
+    {
+        if (robotCamera == null) return;
+        Gizmos.color = new Color(0f, 1f, 1f, 0.25f);
+        Gizmos.DrawWireSphere(robotCamera.transform.position, maxDistance);
+    }
+}
+
+
+// ======================================================
+// OrderService — /unity/order
+// Scratch からコマンドを受け取るだけ
+// ======================================================
+public class OrderService : WebSocketBehavior
+{
+    public Action<string> OnCommand;
+
+    protected override void OnMessage(MessageEventArgs e)
+    {
+        OnCommand?.Invoke(e.Data);
+    }
+}
+
+
+// ======================================================
+// PassiveService — /unity/camera, /unity/response
+// クライアントが接続してブロードキャストを受け取るだけ
+// ======================================================
+public class PassiveService : WebSocketBehavior
+{
+    protected override void OnMessage(MessageEventArgs e) { }
 }
