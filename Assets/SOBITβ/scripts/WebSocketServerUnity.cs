@@ -52,6 +52,7 @@ public class WebSocketServerUnity : MonoBehaviour
     {
         public string type;
         public float value;
+        public bool hasValue;
     }
 
 
@@ -123,7 +124,10 @@ public class WebSocketServerUnity : MonoBehaviour
             string[] parts = msg.Split(':');
             cmd.type = parts[0];
             if (parts.Length > 1 && float.TryParse(parts[1], out float v))
+            {
                 cmd.value = v;
+                cmd.hasValue = true;
+            }
         }
 
         return cmd;
@@ -178,10 +182,10 @@ public class WebSocketServerUnity : MonoBehaviour
                 currentCommand = cmd.type;
 
                 if (currentCommand == "move")
-                    targetDistance = cmd.value != 0f ? Mathf.Abs(cmd.value) : 1.0f;
+                    targetDistance = cmd.hasValue ? Mathf.Abs(cmd.value) : 1.0f;
                 else if (currentCommand == "turn")
                 {
-                    targetAngle = Mathf.Abs(cmd.value != 0f ? cmd.value : 90f);
+                    targetAngle = cmd.hasValue ? Mathf.Abs(cmd.value) : 90f;
                     turnDirection = cmd.value >= 0f ? 1f : -1f;
                 }
 

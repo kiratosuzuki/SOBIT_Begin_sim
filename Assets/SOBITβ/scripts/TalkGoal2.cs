@@ -3,7 +3,7 @@ using System.Collections;
 
 public class TalkGoal2 : TalkGoal
 {
-    public RandomPersonAndFood randomManager;
+    public InitialRandomSettings randomManager;
     public GameObject target; 
     public GameObject target2; 
     public GameObject target3; 
@@ -37,6 +37,12 @@ public class TalkGoal2 : TalkGoal
     // ===== ユーザー入力処理 =====
     public override string HandleUserText(string userText)
     {
+        if (randomManager == null)
+        {
+            Debug.LogError("❌ randomManager が null。InspectorでInitialRandomSettingsを再アサインしてください");
+            return "none";
+        }
+
         if (userText == randomManager.wantItem)
         {
             FreeTaskManager.Instance.CompleteTask("オレオ");
@@ -64,12 +70,6 @@ public class TalkGoal2 : TalkGoal
             StartCoroutine(DeactivateWithDelay(2f));
             FreeTaskManager.Instance.CompleteTask("届ける");
             reply = "none";
-        }
-
-        if (randomManager == null)
-        {
-            Debug.LogError("❌ randomManager が null");
-            return null;
         }
 
         if (TaskManager.Instance.CurrentIndex == 0)
@@ -151,16 +151,9 @@ public class TalkGoal2 : TalkGoal
             {
                 target.tag = "Untagged";
 
-                int rand = Random.Range(0, 2);
-                if (rand == 0)
-                    randomManager.ShowWantItem();
-                else
-                    randomManager.ShowDummyItem();
             }
             else if (userText == "商品が違います")
             {
-                randomManager.HideAllItems();
-                randomManager.ShowWantItem();
             }
             else if (userText == $"{randomManager.wantItem}確認しました")
             {

@@ -35,11 +35,7 @@ namespace SIGVerse.Common
 
 		public void OnPostprocessBuild(BuildReport report)
 		{
-//			if(report.summary.result == BuildResult.Succeeded && report.summary.platformGroup == BuildTargetGroup.Standalone)
-			if(report.summary.platformGroup == BuildTargetGroup.Standalone)
-			{
-				this.CopyConfigFileForBuild(Path.GetDirectoryName(report.summary.outputPath)+"/" + ConfigManager.FolderName);
-			}
+			// SIGVerseConfig のビルド出力へのコピーを無効化
 		}
 
 		private void CopyConfigFileForBuild(string buildDirPath)

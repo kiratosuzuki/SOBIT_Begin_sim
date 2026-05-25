@@ -2,9 +2,8 @@ using UnityEngine;
 
 public class FreeCameraController : MonoBehaviour
 {
-    public float moveSpeed = 10f;
-    public float lookSpeed = 5f;
-    public float verticalSpeed = 2f; // 上下移動スピード
+    [System.NonSerialized] public float moveSpeed;
+    [System.NonSerialized] public float lookSpeed;
 
     private float yaw;
     private float pitch;
@@ -20,6 +19,7 @@ public class FreeCameraController : MonoBehaviour
             Vector3 angles = transform.eulerAngles;
             yaw = angles.y;
             pitch = angles.x;
+            if (pitch > 180f) pitch -= 360f;
 
             wasDragging = true;
 
@@ -47,14 +47,12 @@ public class FreeCameraController : MonoBehaviour
         float z = Input.GetAxis("Vertical");
         Vector3 move = (transform.right * x + transform.forward * z) * moveSpeed;
 
-        // 上下移動は speed を乗せない（別の verticalSpeed のみ）
         if (Input.GetKey(KeyCode.Space))
-            move += Vector3.up * verticalSpeed;
+            move += Vector3.up * moveSpeed;
 
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
-            move += Vector3.down * verticalSpeed;
+            move += Vector3.down * moveSpeed;
 
-        // まとめて反映
         transform.position += move * Time.deltaTime;
     }
 

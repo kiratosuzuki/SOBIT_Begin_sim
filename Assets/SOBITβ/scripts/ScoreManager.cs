@@ -5,12 +5,12 @@ public class ScoreManager : MonoBehaviour
 {
     public static ScoreManager Instance;
 
-    public int score = 0;                         // 取得したスコア
-    public TextMeshProUGUI scoreText;             // UI の Text への参照
+    public int score = 0;
+    public TextMeshProUGUI scoreText;
 
     void Awake()
     {
-        Instance = this; // シングルトンとして保持
+        Instance = this;
     }
 
     void Start()
@@ -18,7 +18,6 @@ public class ScoreManager : MonoBehaviour
         UpdateScoreUI();
     }
 
-    // スコアを加算する関数
     public void AddScore(int amount)
     {
         Debug.Log("AddScore called! amount = " + amount);
@@ -27,8 +26,6 @@ public class ScoreManager : MonoBehaviour
         UpdateScoreUI();
     }
 
-
-    // UI 表示更新
     void UpdateScoreUI()
     {
         scoreText.text = "Score : " + score;

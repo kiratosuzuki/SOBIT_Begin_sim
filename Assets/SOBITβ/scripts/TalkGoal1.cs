@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class TalkGoal1 : TalkGoal
 {
-    public RandomPersonAndFood randomManager;
+    public InitialRandomSettings randomManager;
     public GameObject target; 
     public SpeechBubble wbubble;
     public SpeechBubble cbubble;
@@ -138,17 +138,10 @@ public class TalkGoal1 : TalkGoal
             if (userText == $"{randomManager.wantItem}を置いてください")
             {
                 target.tag = "Untagged";
-                int rand = Random.Range(0, 2);
-                if (rand == 0)
-                    randomManager.ShowWantItem();
-                else
-                    randomManager.ShowDummyItem();
             }
             // 注文の復唱確認
             else if (userText == "商品が違います")
             {
-                randomManager.HideAllItems();
-                randomManager.ShowWantItem();
             }
             else if (userText ==$"{randomManager.wantItem}確認しました")
             {
