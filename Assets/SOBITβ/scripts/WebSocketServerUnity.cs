@@ -182,7 +182,7 @@ public class WebSocketServerUnity : MonoBehaviour
                 currentCommand = cmd.type;
 
                 if (currentCommand == "move")
-                    targetDistance = cmd.hasValue ? Mathf.Abs(cmd.value) : 1.0f;
+                    targetDistance = cmd.hasValue ? Mathf.Abs(cmd.value) / 100f : 1.0f;
                 else if (currentCommand == "turn")
                 {
                     targetAngle = cmd.hasValue ? Mathf.Abs(cmd.value) : 90f;
@@ -228,6 +228,7 @@ public class WebSocketServerUnity : MonoBehaviour
             case "talk":
             {
                 bubble.Say(talkText);
+                TTSManager.Instance?.Speak(talkText);
                 string reply = talkGoal.HandleUserText(talkText);
                 Broadcast("/unity/reply", reply);
                 StartDelay(4f, "done:talk");

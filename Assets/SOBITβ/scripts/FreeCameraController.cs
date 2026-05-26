@@ -8,7 +8,6 @@ public class FreeCameraController : MonoBehaviour
     private float yaw;
     private float pitch;
 
-    private bool wasDragging = false;
 
     void Update()
     {
@@ -20,8 +19,6 @@ public class FreeCameraController : MonoBehaviour
             yaw = angles.y;
             pitch = angles.x;
             if (pitch > 180f) pitch -= 360f;
-
-            wasDragging = true;
 
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
