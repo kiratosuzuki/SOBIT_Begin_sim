@@ -24,6 +24,12 @@ public class InitialRandomSettings : MonoBehaviour
     public Transform cusPos3;
     public bool useLocal_C_Position = false;
 
+    [Header("Customer Rotation Override")]
+    public Vector3 cusRotation0 = new Vector3(270f, 90f, 0f);
+    public Vector3 cusRotation1 = new Vector3(270f, 90f, 0f);
+    public Vector3 cusRotation2 = new Vector3(270f, 0f, 180f);
+    public Vector3 cusRotation3 = new Vector3(270f, 270f, 0f);
+
     [Header("Robot Initial Direction")]
     public GameObject robot;
 
@@ -239,10 +245,11 @@ public class InitialRandomSettings : MonoBehaviour
         else
             customer.transform.position = target.position;
 
-        customer.transform.rotation =
-            (idx == 2) ? Quaternion.Euler(270f, 0f,   180f) :
-            (idx == 3) ? Quaternion.Euler(270f, 270f,   0f) :
-                         Quaternion.Euler(270f, 90f,    0f);
+        customer.transform.rotation = Quaternion.Euler(
+            idx == 0 ? cusRotation0 :
+            idx == 1 ? cusRotation1 :
+            idx == 2 ? cusRotation2 : cusRotation3
+        );
 
     }
 
