@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>WebSocket Test</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; background: #1e1e1e; color: #eee; }
+  h2 { margin-bottom: 16px; }
+  .group { margin-bottom: 16px; }
+  button {
+    padding: 8px 16px; margin: 4px; border: none; border-radius: 6px;
+    background: #4a9eff; color: white; cursor: pointer; font-size: 14px;
+  }
+  button:hover { background: #2e7fd8; }
+  input[type="text"], input[type="number"] {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid #555;
+    background: #2d2d2d; color: #eee; font-size: 14px; width: 160px;
+  }
+  #log {
+    margin-top: 20px; padding: 12px; background: #2d2d2d;
+    border-radius: 8px; height: 200px; overflow-y: auto; font-size: 13px;
+  }
+  .status { font-size: 13px; margin-bottom: 12px; }
+  .connected { color: #4cff88; }
+  .disconnected { color: #ff6b6b; }
+</style>
+</head>
+<body>
+<h2>Unity WebSocket テスト</h2>
+<div class="status">状態: <span id="status" class="disconnected">未接続</span></div>
+
+<div class="group">
+  <button onclick="connect()">接続</button>
+  <button onclick="disconnect()">切断</button>
+</div>
+
+<div class="group">
+  <strong>グリッパー</strong><br>
+  <button onclick="send('open')">open</button>
+  <button onclick="send('close')">close</button>
+</div>
+
+<div class="group">
+  <strong>アーム</strong><br>
+  <button onclick="send('arm_up')">arm_up</button>
+  <button onclick="send('arm_down')">arm_down</button>
+</div>
+
+<div class="group">
+  <strong>移動（cm）</strong><br>
+  <input type="number" id="moveVal" value="100">
+  <button onclick="send('move:' + document.getElementById('moveVal').value)">move</button>
+</div>
+
+<div class="group">
+  <strong>回転（度）</strong><br>
+  <input type="number" id="turnVal" value="90">
+  <button onclick="send('turn:' + document.getElementById('turnVal').value)">turn</button>
+</div>
+
+<div class="group">
+  <strong>発話</strong><br>
+  <input type="text" id="talkVal" value="こんにちは">
+  <button onclick="send('talk:' + document.getElementById('talkVal').value)">talk</button>
+</div>
+
+<div id="log"></div>
+
+<script>
+  let ws = null;
+
+  function connect() {
+    ws = new WebSocket('ws://localhost:8080/unity/order');
+    ws.onopen = () => {
+      setStatus(true);
+      log('接続しました');
+    };
+    ws.onclose = () => {
+      setStatus(false);
+      log('切断しました');
+    };
+    ws.onerror = (e) => log('エラー: ' + e.message);
+    ws.onmessage = (e) => log('受信: ' + e.data);
+  }
+
+  function disconnect() {
+    ws?.close();
+  }
+
+  function send(msg) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      log('未接続です');
+      return;
+    }
+    ws.send(msg);
+    log('送信: ' + msg);
+  }
+
+  function setStatus(connected) {
+    const el = document.getElementById('status');
+    el.textContent = connected ? '接続中' : '未接続';
+    el.className = connected ? 'connected' : 'disconnected';
+  }
+
+  function log(msg) {
+    const el = document.getElementById('log');
+    const line = document.createElement('div');
+    line.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+</script>
+</body>
+</html>

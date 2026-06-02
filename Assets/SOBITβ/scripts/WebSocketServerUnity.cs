@@ -18,23 +18,30 @@ public class WebSocketServerUnity : MonoBehaviour
     public TalkGoal talkGoal;
     public HsrSmoothGripper gripper;
     public SpeechBubble bubble;
+    public ArmLifter armLifter;
 
     [Header("Camera Topic")]
     public float cameraScanInterval = 0.5f;
 
+    [Header("Talk Reply Delay")]
+    public float replyDelay = 4f;
+
+
     // Movement parameters
     private float linearSpeed = 0.5f;
     private float angularSpeed = 60f;
-    private float targetDistance = 1.0f;
-    private float targetAngle = 90f;
 
     // Movement state
     private bool isExecuting = false;
     private string currentCommand = "";
-    private float movedDistance = 0f;
-    private float turnedAngle = 0f;
-    private float turnDirection = 1f;
+    private Vector3 targetPosition;
+    private Quaternion targetRotation;
     private string talkText = "";
+
+    // Timeout
+    public float timeoutMargin = 1.2f;
+    private float moveTimer = 0f;
+    private float moveTimeout = 0f;
 
     // Delay state
     private bool delayMode = false;
@@ -182,16 +189,20 @@ public class WebSocketServerUnity : MonoBehaviour
                 currentCommand = cmd.type;
 
                 if (currentCommand == "move")
-                    targetDistance = cmd.hasValue ? Mathf.Abs(cmd.value) / 100f : 1.0f;
+                {
+                    float dist = cmd.hasValue ? Mathf.Abs(cmd.value) / 100f : 1.0f;
+                    targetPosition = baseFootprint.position + (-baseFootprint.right * dist);
+                    moveTimeout = dist / linearSpeed * timeoutMargin;
+                }
                 else if (currentCommand == "turn")
                 {
-                    targetAngle = cmd.hasValue ? Mathf.Abs(cmd.value) : 90f;
-                    turnDirection = cmd.value >= 0f ? 1f : -1f;
+                    float angle = cmd.hasValue ? cmd.value : 90f;
+                    targetRotation = baseFootprint.rotation * Quaternion.AngleAxis(angle, Vector3.forward);
+                    moveTimeout = Mathf.Abs(angle) / angularSpeed * timeoutMargin;
                 }
 
                 isExecuting = true;
-                movedDistance = 0f;
-                turnedAngle = 0f;
+                moveTimer = 0f;
             }
         }
 
@@ -201,10 +212,10 @@ public class WebSocketServerUnity : MonoBehaviour
         {
             case "move":
             {
-                float step = linearSpeed * Time.deltaTime;
-                baseFootprint.Translate(-Vector3.right * step, Space.Self);
-                movedDistance += step;
-                if (movedDistance >= targetDistance)
+                moveTimer += Time.deltaTime;
+                baseFootprint.position = Vector3.MoveTowards(
+                    baseFootprint.position, targetPosition, linearSpeed * Time.deltaTime);
+                if (baseFootprint.position == targetPosition || moveTimer >= moveTimeout)
                 {
                     isExecuting = false;
                     Broadcast("/unity/response", "done:move");
@@ -214,10 +225,10 @@ public class WebSocketServerUnity : MonoBehaviour
 
             case "turn":
             {
-                float step = angularSpeed * Time.deltaTime;
-                baseFootprint.Rotate(Vector3.forward * step * turnDirection, Space.Self);
-                turnedAngle += step;
-                if (turnedAngle >= targetAngle)
+                moveTimer += Time.deltaTime;
+                baseFootprint.rotation = Quaternion.RotateTowards(
+                    baseFootprint.rotation, targetRotation, angularSpeed * Time.deltaTime);
+                if (baseFootprint.rotation == targetRotation || moveTimer >= moveTimeout)
                 {
                     isExecuting = false;
                     Broadcast("/unity/response", "done:turn");
@@ -230,7 +241,7 @@ public class WebSocketServerUnity : MonoBehaviour
                 bubble.Say(talkText);
                 TTSManager.Instance?.Speak(talkText);
                 string reply = talkGoal.HandleUserText(talkText);
-                Broadcast("/unity/reply", reply);
+                StartCoroutine(BroadcastDelayed("/unity/reply", reply, replyDelay));
                 StartDelay(4f, "done:talk");
                 break;
             }
@@ -243,6 +254,16 @@ public class WebSocketServerUnity : MonoBehaviour
             case "close":
                 gripper?.Close();
                 StartDelay(2f, "done:close");
+                break;
+
+            case "arm_up":
+                armLifter?.MoveUp();
+                StartDelay(1f, "done:arm_up");
+                break;
+
+            case "arm_down":
+                armLifter?.MoveDown();
+                StartDelay(1f, "done:arm_down");
                 break;
 
             default:
@@ -285,6 +306,12 @@ public class WebSocketServerUnity : MonoBehaviour
     // ======================================================
     // ブロードキャスト
     // ======================================================
+    private System.Collections.IEnumerator BroadcastDelayed(string path, string message, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        Broadcast(path, message);
+    }
+
     private void Broadcast(string path, string message)
     {
         try

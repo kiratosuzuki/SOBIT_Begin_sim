@@ -45,6 +45,9 @@ public class FreeTaskManager : MonoBehaviour
         Debug.LogWarning("Task not found : " + taskName);
     }
 
+    public void CompleteTaskAlpha(string taskName) => CompleteTask(taskName, false);
+    public void CompleteTaskBeta(string taskName)  => CompleteTask(taskName, true);
+
     public bool IsCompleted(string taskName)
     {
         foreach (var t in tasks)

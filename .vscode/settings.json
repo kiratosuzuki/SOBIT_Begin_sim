@@ -67,5 +67,7 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "SOBIT_Begin_sim.slnx"
+    "dotnet.defaultSolution": "SOBIT_Begin_sim.slnx",
+    "cloudlatex.enabled": true,
+    "cloudlatex.outDir": "1414491"
 }

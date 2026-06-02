@@ -4,7 +4,8 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Toggle))]
 public class SettingToggleBinder : MonoBehaviour
 {
-    public SettingKey key;
+        public SettingKey key;
+    public bool invert = false;
 
     Toggle toggle;
 
@@ -14,7 +15,8 @@ public class SettingToggleBinder : MonoBehaviour
     {
         if (CompetitionSettings.Instance == null) return;
 
-        toggle.SetIsOnWithoutNotify(CompetitionSettings.Instance.Get(key));
+        bool value = CompetitionSettings.Instance.Get(key);
+        toggle.SetIsOnWithoutNotify(invert ? !value : value);
         toggle.onValueChanged.AddListener(OnToggleChanged);
     }
 
@@ -27,6 +29,6 @@ public class SettingToggleBinder : MonoBehaviour
     void OnToggleChanged(bool isOn)
     {
         if (CompetitionSettings.Instance == null) return;
-        CompetitionSettings.Instance.Set(key, isOn);
+        CompetitionSettings.Instance.Set(key, invert ? !isOn : isOn);
     }
 }

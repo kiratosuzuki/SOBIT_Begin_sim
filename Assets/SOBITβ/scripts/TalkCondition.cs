@@ -23,6 +23,8 @@ public class TalkCondition : MonoBehaviour
 
     [Header("Reply (空欄なら返答なし)  ※プレースホルダー使用可")]
     public string replyText;
+    public SpeechBubble npcBubble;
+    public float npcBubbleDelay = 4f;
 
     [Header("Difficulty (アルファ/ベータでスコアを変える場合)")]
     public bool hasDifficulty = false;
@@ -51,6 +53,8 @@ public class TalkCondition : MonoBehaviour
         onCompleted.Invoke();
 
         string reply = Resolve(replyText);
+        if (!string.IsNullOrEmpty(reply) && npcBubble != null)
+            StartCoroutine(SayDelayed(reply));
         return string.IsNullOrEmpty(reply) ? null : reply;
     }
 
@@ -74,6 +78,13 @@ public class TalkCondition : MonoBehaviour
             if (!anyMatch) return false;
         }
         return true;
+    }
+
+    System.Collections.IEnumerator SayDelayed(string reply)
+    {
+        yield return new WaitForSeconds(npcBubbleDelay);
+        npcBubble.Say(reply);
+        TTSManager.Instance?.Speak(reply);
     }
 
     static string Resolve(string template)
