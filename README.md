@@ -1,6 +1,22 @@
-# Unity Projects
+# SU-RoboLearn
 
-Unity projects of SIGVerse.
+Unity と SIGVerse を使用したロボットシミュレーター。モバイルマニピュレータおよびタートルボットに対応しています。
 
-http://www.sigverse.org/web/
+## 概要
 
+SU-RoboLearn は、モバイルマニピュレータとタートルボットを使った研究・開発向けの Unity ベースのロボットシミュレーターです。ロボットの動作、タスク実行、センサー統合などをシミュレーション上でテスト・開発することができます。
+
+本プロジェクトは、人とロボットのインタラクション（HRI）研究向けのシミュレーション基盤である [SIGVerse](https://github.com/SIGVerse) を使用しています。
+
+主な機能：
+
+- モバイルマニピュレータ・タートルボットのシミュレーション
+- 複数カメラビュー（バックカメラ・ハンドカメラ・トップカメラ）
+- WebSocket による外部制御通信
+- テキスト読み上げ（TTS）機能
+- カスタマイズ可能なシーン・タスクシナリオ
+
+## ライセンス
+
+本プロジェクトは人とロボットのインタラクション研究向けプラットフォーム [SIGVerse](https://github.com/SIGVerse) を使用しています。  
+ライセンスの詳細は [LICENSE](./LICENSE) および [Licenses/LICENSE.jp.txt](./Licenses/LICENSE.jp.txt) を参照してください。
